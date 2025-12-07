@@ -3,3 +3,4 @@ selenium
 pytest
 requests
 webdriver-manager
+pytest-cov

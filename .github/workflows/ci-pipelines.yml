@@ -1,35 +1,48 @@
 name: FullStack QA Pipeline
 
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   qa-automation:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      # 1. Bajamos el código (fetch-depth: 0 es OBLIGATORIO para SonarCloud)
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      # 2. Configurar Python
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-    - name: Install Dependencies
-      run: |
-        pip install -r requirements.txt
+      # 3. Instalar Dependencias (ahora incluye pytest-cov)
+      - name: Install Dependencies
+        run: |
+          pip install -r requirements.txt
 
-    - name: Run App in Background
-      run: |
-        # Ejecutamos la app Flask en segundo plano para poder testearla
-        nohup python app/app.py > app.log 2>&1 &
-        sleep 5 # Damos tiempo a que arranque
+      # 4. Levantar App en background
+      - name: Run App in Background
+        run: |
+          nohup python app/app.py > app.log 2>&1 &
+          sleep 5
 
-    - name: Run UI & API Tests
-      run: |
-        pytest tests/ -v --junitxml=reports/result.xml
-    
-    # Aquí iría el paso de Docker Build y ArgoCD (simulado o real)
-    - name: Build Docker Image (Simulation)
-      if: success()
-      run: echo "Building Docker image for version ${{ github.sha }}"
+      # 5. Correr Tests y generar reporte de Cobertura (coverage.xml)
+      - name: Run Tests with Coverage
+        run: |
+          pytest tests/ -v --cov=app --cov=tests --cov-report=xml:coverage.xml --junitxml=reports/result.xml
+
+      # 6. Análisis de SonarCloud
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

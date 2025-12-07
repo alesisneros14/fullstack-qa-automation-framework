@@ -1,0 +1,35 @@
+name: FullStack QA Pipeline
+
+on: [push, pull_request]
+
+jobs:
+  qa-automation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Dependencies
+      run: |
+        pip install -r requirements.txt
+
+    - name: Run App in Background
+      run: |
+        # Ejecutamos la app Flask en segundo plano para poder testearla
+        nohup python app/app.py > app.log 2>&1 &
+        sleep 5 # Damos tiempo a que arranque
+
+    - name: Run UI & API Tests
+      run: |
+        pytest tests/ -v --junitxml=reports/result.xml
+    
+    # Aquí iría el paso de Docker Build y ArgoCD (simulado o real)
+    - name: Build Docker Image (Simulation)
+      if: success()
+      run: echo "Building Docker image for version ${{ github.sha }}"
